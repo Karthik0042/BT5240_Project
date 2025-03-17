@@ -14,14 +14,15 @@ ax.set_ylim(0, 10)
 ax.set_title("10x10 Grid Animation")
 
 # Create Grid
-grid_size = 1000  # Change to 1000 for a large grid
+grid_size = 20  # Change to 1000 for a large grid
 time_steps = 50  # Number of frames in animation
 g = Grid(grid_size, time_steps)
 
 # Create and add organisms
-num_organisms = 1000  # Adjust number of organisms
+num_organisms = 1  # Adjust number of organisms
 organisms = [Organism(np.random.randint(0, grid_size), np.random.randint(0, grid_size), grid_size) for _ in range(num_organisms)]
 g.add_organisms(organisms)
 
 # Run animation
 g.animate(fig, ax)
+

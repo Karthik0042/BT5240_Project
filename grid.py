@@ -1,5 +1,3 @@
-# grid.py
-
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -8,29 +6,82 @@ import matplotlib.animation as animation
 class Grid:
     def __init__(self, size, time_steps):
         self.size = size
-        self.time_steps = time_steps  # Number of animation frames
-        self.organisms = []  # List of organisms
+        self.time_steps = time_steps
+        self.last_division_time = 0
+        self.last_food_spawn_time = 0
+        self.organisms = []
+        self.food_positions = self.spawn_food()
+        self.food_touch_time = {}  # Track when an organism first touches food
+        self.organism_timers = {}  # Track how long since an organism last touched food
+
+    def spawn_food(self):
+        return [tuple(pos) for pos in np.random.randint(0, self.size, (15, 2))]
 
     def add_organisms(self, organisms):
-        """Add a list of organisms to the grid."""
         self.organisms = organisms
-
-    def update(self, frame, scatter):
-        """Move organisms and update scatter plot."""
-        # Move organisms
         for org in self.organisms:
-            org.move()
+            self.organism_timers[org] = 0
 
-        # Update scatter plot positions
+    def position(self):
         x_vals = [org.x for org in self.organisms]
         y_vals = [org.y for org in self.organisms]
-        scatter.set_offsets(np.c_[x_vals, y_vals])  # Efficient update using set_offsets
+        return [x_vals, y_vals]
 
-        return scatter,  # Blit requires a tuple
+    def update(self, frame, scatter, food_scatter):
+        new_organisms = []
+        to_remove = []
+
+        for org in self.organisms:
+            org.move()
+            pos = (org.x, org.y)
+
+            if org not in self.organism_timers:
+                self.organism_timers[org] = frame  # Initialize starvation timer
+
+            if pos in self.food_positions and org not in self.food_touch_time:
+                self.food_touch_time[org] = frame
+                self.food_positions.remove(pos)  # Remove food immediately after touch
+                self.organism_timers[org] = frame  # Reset starvation timer
+                print("The organism touched the food")
+
+            # Divide if organism touched food 50 frames ago
+            if org in self.food_touch_time and frame - self.food_touch_time[org] >= 50:
+                new_organisms.append(org.division())
+                del self.food_touch_time[org]
+
+            # Increment starvation timer
+            if org in self.organism_timers:
+                starvation_time = frame - self.organism_timers[org]
+            else:
+                starvation_time = 0
+
+            # Kill organism if no food in 500 frames
+            if starvation_time >= 100:
+                to_remove.append(org)
+
+        # Remove dead organisms
+        for org in to_remove:
+            self.organisms.remove(org)
+            self.organism_timers.pop(org, None)
+            self.food_touch_time.pop(org, None)
+
+        # Add new organisms
+        self.organisms.extend(new_organisms)
+
+        # Respawn food every 300 frames
+        if frame - self.last_food_spawn_time >= 300 and len(self.food_positions) == 0:
+            self.food_positions = self.spawn_food()
+            self.last_food_spawn_time = frame
+
+        # Update scatter plot
+        org_positions = self.position()
+        scatter.set_offsets(np.c_[org_positions[0], org_positions[1]])
+        food_x, food_y = zip(*self.food_positions) if self.food_positions else ([], [])
+        food_scatter.set_offsets(np.c_[food_x, food_y])
+
+        return scatter, food_scatter
 
     def animate(self, fig, ax):
-        """Run animation."""
-        # Draw grid
         ax.set_xticks(np.arange(0, self.size, 1), minor=True)
         ax.set_yticks(np.arange(0, self.size, 1), minor=True)
         ax.grid(which="minor", color="gray", linestyle="-", linewidth=0.1)
@@ -39,11 +90,10 @@ class Grid:
         ax.set_xlim(0, self.size)
         ax.set_ylim(0, self.size)
 
-        # Create scatter plot for organisms
-        scatter = ax.scatter([], [], c='red', s=20)  # s=20 for size of dots
+        scatter = ax.scatter([], [], c='red', s=20)
+        food_scatter = ax.scatter([], [], c='green', s=30)
 
-        # Create animation
-        ani = animation.FuncAnimation(fig, self.update, frames=self.time_steps, interval=100, fargs=(scatter,),
+        ani = animation.FuncAnimation(fig, self.update, interval=100, fargs=(scatter, food_scatter),
                                       blit=True)
 
         plt.show()

@@ -6,10 +6,10 @@ class Organism:
     def __init__(self, x, y, grid_size):
         self.x = x
         self.y = y
-        self.grid_size = grid_size  # Store grid size for boundary checks
+        self.grid_size = grid_size
 
     def move(self):
-        """Move the organism randomly in one of four directions."""
+        # Moving the organism in a random directions
         direction = random.choice(["up", "down", "left", "right"])
 
         if direction == "up" and self.y < self.grid_size - 1:
@@ -20,3 +20,6 @@ class Organism:
             self.x -= 1
         elif direction == "right" and self.x < self.grid_size - 1:
             self.x += 1
+    def  division(self):
+        # Mitosis of the organism
+        return Organism(self.x, self.y, self.grid_size)
