@@ -11,7 +11,7 @@ ax.set_xticks([])
 ax.set_yticks([])
 ax.set_xlim(0, 10)
 ax.set_ylim(0, 10)
-ax.set_title("10x10 Grid Animation")
+ax.set_title("10x10 Grid Animation") # Change title to "20x20 Grid Animation"
 
 # Create Grid
 grid_size = 20  # Change to 1000 for a large grid
