@@ -32,7 +32,7 @@ class Grid:
         to_remove = []
 
         for org in self.organisms:
-            org.move(self.food_positions)
+            org.move()
             pos = (org.x, org.y)
 
             if org not in self.organism_timers:
@@ -50,7 +50,10 @@ class Grid:
                 del self.food_touch_time[org]
 
             # Increment starvation timer
-            starvation_time = frame - self.organism_timers.get(org, 0)
+            if org in self.organism_timers:
+                starvation_time = frame - self.organism_timers[org]
+            else:
+                starvation_time = 0
 
             # Kill organism if no food in 500 frames
             if starvation_time >= 100:
