@@ -10,7 +10,7 @@ fig, ax = plt.subplots(figsize=(8, 8))
 ax.set_xticks([])
 ax.set_yticks([])
 ax.set_xlim(0, 10)
-ax.set_ylim(0, 10)
+ax.set_ylim(0, 10)#update
 ax.set_title("10x10 Grid Animation") # Change title to "20x20 Grid Animation"
 
 # Create Grid
