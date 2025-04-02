@@ -7,13 +7,14 @@ class Organism:
         self.x = x
         self.y = y
         self.grid_size = grid_size
-        self.food_gene = 0.0  # Determines movement behavior
+        self.food_gene = 0.2
+          # Determines movement behavior
 
     def gene_food(self, food_positions):
         gene_food = 0.5
         if not food_positions:
             return 0.0
-        return gene_food  # For now, set to 1.0 if food exists, can be modified for evolution
+        return gene_food
 
     def move_towards_food(self, food_positions):
         if not food_positions or self.food_gene == 0.0:
@@ -58,5 +59,6 @@ class Organism:
 
     def division(self):
         offspring = Organism(self.x, self.y, self.grid_size)
-        offspring.food_gene = self.food_gene  # Inherit gene
+        # Mutate offspring's food_gene
+        offspring.food_gene = self.food_gene + np.random.normal(0, 0.4)
         return offspring

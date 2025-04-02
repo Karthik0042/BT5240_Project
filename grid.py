@@ -12,7 +12,8 @@ class Grid:
         self.organisms = []
         self.food_positions = self.spawn_food()
         self.food_touch_time = {}  # Track when an organism first touches food
-        self.organism_timers = {}  # Track how long since an organism last touched food
+        self.organism_timers = {}
+        self.food_timer = 200 # Hyperparameter # Track how long since an organism last touched food
 
     def spawn_food(self):
         return [tuple(pos) for pos in np.random.randint(0, self.size, (15, 2))]
@@ -32,7 +33,7 @@ class Grid:
         to_remove = []
 
         for org in self.organisms:
-            org.move()
+            org.move(self.food_positions)
             pos = (org.x, org.y)
 
             if org not in self.organism_timers:
@@ -47,6 +48,8 @@ class Grid:
             # Divide if organism touched food 50 frames ago
             if org in self.food_touch_time and frame - self.food_touch_time[org] >= 50:
                 new_organisms.append(org.division())
+                #new_organisms.append(org.division())
+               # new_organisms.append(org.division())
                 del self.food_touch_time[org]
 
             # Increment starvation timer
@@ -69,7 +72,7 @@ class Grid:
         self.organisms.extend(new_organisms)
 
         # Respawn food every 300 frames
-        if frame - self.last_food_spawn_time >= 300 and len(self.food_positions) == 0:
+        if frame - self.last_food_spawn_time >= self.food_timer and len(self.food_positions) == 0:
             self.food_positions = self.spawn_food()
             self.last_food_spawn_time = frame
 
@@ -90,10 +93,10 @@ class Grid:
         ax.set_xlim(0, self.size)
         ax.set_ylim(0, self.size)
 
-        scatter = ax.scatter([], [], c='red', s=20)
         food_scatter = ax.scatter([], [], c='green', s=30)
+        scatter = ax.scatter([], [], c='red', s=20,marker='s')
+        ax.set_facecolor('blue')
 
-        ani = animation.FuncAnimation(fig, self.update, interval=100, fargs=(scatter, food_scatter),
-                                      blit=True)
 
+        ani = animation.FuncAnimation(fig, self.update, interval=100, fargs=(scatter, food_scatter), blit=True)
         plt.show()

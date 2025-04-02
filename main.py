@@ -15,7 +15,7 @@ ax.set_title("10x10 Grid Animation") # Change title to "20x20 Grid Animation"
 
 # Create Grid
 grid_size = 20  # Change to 1000 for a large grid
-time_steps = 50  # Number of frames in animation
+time_steps = 100  # Number of frames in animation
 g = Grid(grid_size, time_steps)
 
 # Create and add organisms
