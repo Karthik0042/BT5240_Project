@@ -11,7 +11,7 @@ class Organism:
         self.speed = 0.1
 
         self.canbalism = False
-        # Determines movement behavior
+          # Determines movement behavior
 
     def gene_food(self, food_positions):
         gene_food = 0.1
@@ -19,7 +19,6 @@ class Organism:
         if not food_positions:
             return 0.0
         return self.food_gene
-
     def speed(self):
         return self.speed
 
@@ -29,7 +28,7 @@ class Organism:
                 self.move_random()
                 return
 
-            # Find the nearest food source
+        # Find the nearest food source
             nearest_food = min(food_positions, key=lambda f: abs(f[0] - self.x) + abs(f[1] - self.y))
             dx = np.sign(nearest_food[0] - self.x)
             dy = np.sign(nearest_food[1] - self.y)
@@ -72,7 +71,7 @@ class Organism:
             else:
                 self.move_random()
 
-    def coordinates(self):
+    def  coordinates(self):
         return (self.x, self.y)
 
     def division(self):
