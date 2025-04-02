@@ -32,11 +32,15 @@ class Grid:
         new_organisms = []
         to_remove = []
         coordinates = []
+        speed = {}
         for idx,org in enumerate(self.organisms):
 
             org.move(self.food_positions)
             (x,y)= org.coordinates()
-            coordinates.append(f'Coordintate of org {idx} is {(x,y)}')
+           # coordinates.append(f'Coordintate of org {idx} is {(x,y)}')
+            if org not in speed:
+                speed[org] = org.speed
+
 
             pos = (org.x, org.y)
 
@@ -85,7 +89,7 @@ class Grid:
         scatter.set_offsets(np.c_[org_positions[0], org_positions[1]])
         food_x, food_y = zip(*self.food_positions) if self.food_positions else ([], [])
         food_scatter.set_offsets(np.c_[food_x, food_y])
-        print(coordinates)
+        print(speed)
 
         return scatter, food_scatter
 

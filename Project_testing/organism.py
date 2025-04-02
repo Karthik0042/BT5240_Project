@@ -7,20 +7,20 @@ class Organism:
         self.x = x
         self.y = y
         self.grid_size = grid_size
-        self.food_gene = 0.1
-        self.speed = 0.1
+        self.food_gene = 0.5
+        self.speed = 0.4
 
         self.canbalism = False
           # Determines movement behavior
 
     def gene_food(self, food_positions):
-        gene_food = 0.1
+        gene_food = 0.5
         self.food_gene = gene_food
         if not food_positions:
             return 0.0
         return self.food_gene
     def speed(self):
-        return self.speed
+        return self.speed*10
 
     def move_towards_food(self, food_positions):
         if not self.canbalism:
@@ -78,5 +78,6 @@ class Organism:
         if not self.canbalism:
             offspring = Organism(self.x, self.y, self.grid_size)
             offspring.food_gene = self.food_gene + np.random.normal(0, 0.1)
+            offspring.speed = self.speed + np.random.normal(0, 0.1)
             return offspring
 
