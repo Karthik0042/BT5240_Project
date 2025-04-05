@@ -7,14 +7,14 @@ class Organism:
         self.x = x
         self.y = y
         self.grid_size = grid_size
-        self.food_gene = 0.5
-        self.speed = 0.4
+        self.food_gene = 0.9
+        self.speed = 1
 
         self.canbalism = False
           # Determines movement behavior
 
     def gene_food(self, food_positions):
-        gene_food = 0.5
+        gene_food = 0.9
         self.food_gene = gene_food
         if not food_positions:
             return 0.0
