@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-
 class Grid:
     def __init__(self, size, time_steps):
         self.size = size
@@ -13,9 +12,12 @@ class Grid:
         self.food_positions = self.spawn_food()
         self.food_touch_time = {}  # Track when an organism first touches food
         self.organism_timers = {}  # Track how long since an organism last touched food
+        self.running = True  # Add a flag to control animation
+        self.population_data = [] # Initialize population data
 
     def spawn_food(self):
-        return [tuple(pos) for pos in np.random.randint(0, self.size, (15, 2))]
+        num_food = 50
+        return [tuple(pos) for pos in np.random.randint(0, self.size, (num_food, 2))]
 
     def add_organisms(self, organisms):
         self.organisms = organisms
@@ -28,6 +30,9 @@ class Grid:
         return [x_vals, y_vals]
 
     def update(self, frame, scatter, food_scatter):
+        if not self.running:
+            return scatter, food_scatter  # Stop updating if not running
+
         new_organisms = []
         to_remove = []
 
@@ -44,8 +49,8 @@ class Grid:
                 self.organism_timers[org] = frame  # Reset starvation timer
                 print("The organism touched the food")
 
-            # Divide if organism touched food 50 frames ago
-            if org in self.food_touch_time and frame - self.food_touch_time[org] >= 50:
+            # Divide if organism touched food 205 frames ago
+            if org in self.food_touch_time and frame - self.food_touch_time[org] >= 150:
                 new_organisms.append(org.division())
                 del self.food_touch_time[org]
 
@@ -55,8 +60,8 @@ class Grid:
             else:
                 starvation_time = 0
 
-            # Kill organism if no food in 500 frames
-            if starvation_time >= 100:
+            # Kill organism if no food in 350 frames
+            if starvation_time >= 350:
                 to_remove.append(org)
 
         # Remove dead organisms
@@ -68,8 +73,8 @@ class Grid:
         # Add new organisms
         self.organisms.extend(new_organisms)
 
-        # Respawn food every 300 frames
-        if frame - self.last_food_spawn_time >= 300 and len(self.food_positions) == 0:
+        # Respawn food every 2000 frames
+        if frame - self.last_food_spawn_time >= 100*self.time_steps and len(self.food_positions) == 0:
             self.food_positions = self.spawn_food()
             self.last_food_spawn_time = frame
 
@@ -78,6 +83,13 @@ class Grid:
         scatter.set_offsets(np.c_[org_positions[0], org_positions[1]])
         food_x, food_y = zip(*self.food_positions) if self.food_positions else ([], [])
         food_scatter.set_offsets(np.c_[food_x, food_y])
+
+        # Stop the animation if no organisms are left
+        if len(self.organisms) == 0:
+            self.running = False
+            print("All organisms are gone! Stopping animation.")
+
+        self.population_data.append(len(self.organisms))  # Append population data
 
         return scatter, food_scatter
 
@@ -94,6 +106,7 @@ class Grid:
         food_scatter = ax.scatter([], [], c='green', s=30)
 
         ani = animation.FuncAnimation(fig, self.update, interval=100, fargs=(scatter, food_scatter),
-                                      blit=True)
-
+                                        blit=True)
         plt.show()
+
+        return self.population_data  # Return the population data

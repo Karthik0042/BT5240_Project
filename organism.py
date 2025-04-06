@@ -20,6 +20,7 @@ class Organism:
             self.x -= 1
         elif direction == "right" and self.x < self.grid_size - 1:
             self.x += 1
+            
     def  division(self):
         # Mitosis of the organism
         return Organism(self.x, self.y, self.grid_size)
