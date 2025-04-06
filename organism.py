@@ -2,17 +2,21 @@ import random
 import numpy as np
 
 class Organism:
-    def __init__(self, x, y, grid_size, speed):
+    def __init__(self, x, y, grid_size, speed, food_gene):
         self.x = x
         self.y = y
         self.grid_size = grid_size
         self.speed = speed
+        self.food_gene = food_gene  # Sensitivity to food direction
         self.food_count = 0
         self.birth_time = 0
         self.death_time = None
 
     def get_speed(self):
         return self.speed
+
+    def get_food_gene(self):
+        return self.food_gene
 
     def move_random(self):
         direction = random.choice(["up", "down", "left", "right"])
@@ -34,7 +38,7 @@ class Organism:
         dx = np.sign(nearest_food[0] - self.x)
         dy = np.sign(nearest_food[1] - self.y)
 
-        if random.random() < self.speed:
+        if random.random() < self.food_gene:  # Use food_gene
             self.x = max(0, min(self.grid_size - 1, self.x + dx))
             self.y = max(0, min(self.grid_size - 1, self.y + dy))
         else:
@@ -44,6 +48,9 @@ class Organism:
         self.move_towards_food(food_positions)
 
     def division(self):
-        child = Organism(self.x, self.y, self.grid_size, self.speed)
+        # Child speed evolves (starts at 0.3 + random)
+        child_speed = max(0.1, min(1.0, self.speed + np.random.normal(0, 0.1)))
+        child_food_gene = max(0.1, min(1.0, self.food_gene + np.random.normal(0, 0.1)))
+        child = Organism(self.x, self.y, self.grid_size, child_speed, child_food_gene)
         child.birth_time = self.birth_time
         return child

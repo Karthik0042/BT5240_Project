@@ -13,23 +13,26 @@ ax.set_title("Simulation")
 grid_size = 20
 time_steps = None
 num_organisms = 10
+reproduction_time = 75  # Adjusted reproduction time
 
 def run_simulation():
-    g = Grid(grid_size, time_steps)
+    g = Grid(grid_size, time_steps, reproduction_time)
     organisms = [
         Organism(
             np.random.randint(0, grid_size),
             np.random.randint(0, grid_size),
             grid_size,
-            speed=np.random.uniform(0.5, 1.0)
+            speed=0.3 + np.random.normal(0, 0.1),  # Initial speed around 0.3
+            food_gene=0.3 + np.random.uniform(0, 0.1)  # food detection
         ) for _ in range(num_organisms)
     ]
     g.add_organisms(organisms)
-    population_data, avg_speed_history, food_count_history, food_interactions = g.animate(fig, ax)
+    population_data, avg_speed_history, avg_food_gene_history, food_count_history, food_interactions = g.animate(fig, ax)
     return {
         'population': population_data,
         'avg_speed_history': avg_speed_history,
-        'food_count_history':food_count_history,
+        'avg_food_gene_history': avg_food_gene_history,
+        'food_count_history': food_count_history,
         'food_interactions': food_interactions
     }
 
@@ -37,5 +40,11 @@ def run_simulation():
 results = run_simulation()
 
 # Plot the graphs
-g = Grid(grid_size, time_steps)
-g.plot_graphs(results['population'], results['avg_speed_history'], results['food_count_history'], results['food_interactions'])
+g = Grid(grid_size, time_steps, reproduction_time)
+g.plot_graphs(
+    results['population'],
+    results['avg_speed_history'],
+    results['avg_food_gene_history'],
+    results['food_count_history'],
+    results['food_interactions']
+)
