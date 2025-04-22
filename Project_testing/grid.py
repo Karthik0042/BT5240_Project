@@ -1,97 +1,86 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+from organism import Organism
 
 class Grid:
-    def __init__(self, size, time_steps):
+    def __init__(self, size, num_organisms, num_food):
         self.size = size
-        self.time_steps = time_steps
-        self.last_division_time = 0
-        self.last_food_spawn_time = 0
         self.organisms = []
+        self.time_steps = 0
+        self.last_food_spawn_time = 0
+        self.food_timer = 200
+        self.num_food = num_food
         self.food_positions = self.spawn_food()
-        self.food_touch_time = {}  # Track when an organism first touches food
         self.organism_timers = {}
-        self.food_timer = 200 # Hyperparameter # Track how long since an organism last touched food
+        self.food_touch_time = {}
 
     def spawn_food(self):
-        return [tuple(pos) for pos in np.random.randint(0, self.size, (15, 2))]
+        return [tuple(pos) for pos in np.random.randint(0, self.size, (self.num_food, 2))]
 
     def add_organisms(self, organisms):
         self.organisms = organisms
-        for org in self.organisms:
+        for org in organisms:
             self.organism_timers[org] = 0
 
-    def position(self):
-        x_vals = [org.x for org in self.organisms]
-        y_vals = [org.y for org in self.organisms]
-        return [x_vals, y_vals]
-
-    def update(self, frame, scatter, food_scatter):
+    def update(self, frame, herbivore_scatter, carnivore_scatter, food_scatter):
         new_organisms = []
         to_remove = []
-        coordinates = []
-        speed = {}
-        for idx,org in enumerate(self.organisms):
 
-            org.move(self.food_positions)
-            (x,y)= org.coordinates()
-           # coordinates.append(f'Coordintate of org {idx} is {(x,y)}')
-            if org not in speed:
-                speed[org] = org.speed
-
-
+        for org in self.organisms:
+            org.move(self.food_positions, self.organisms)
             pos = (org.x, org.y)
 
             if org not in self.organism_timers:
-                self.organism_timers[org] = frame  # Initialize starvation timer
+                self.organism_timers[org] = frame
 
-            if pos in self.food_positions and org not in self.food_touch_time:
-                self.food_touch_time[org] = frame
-                self.food_positions.remove(pos)  # Remove food immediately after touch
-                self.organism_timers[org] = frame  # Reset starvation timer
-                print("The organism touched the food")
+            if not org.canbalism:
+                if pos in self.food_positions:
+                    self.food_positions.remove(pos)
+                    self.organism_timers[org] = frame
+                    self.food_touch_time[org] = frame
 
-            # Divide if organism touched food 50 frames ago
-            if org in self.food_touch_time and frame - self.food_touch_time[org] >= 50:
-                new_organisms.append(org.division())
-                #new_organisms.append(org.division())
-               # new_organisms.append(org.division())
-                del self.food_touch_time[org]
+                if org in self.food_touch_time and frame - self.food_touch_time[org] >= 50:
+                    new_organisms.append(org.division())
+                    del self.food_touch_time[org]
 
-            # Increment starvation timer
-            if org in self.organism_timers:
-                starvation_time = frame - self.organism_timers[org]
+                if frame - self.organism_timers[org] >= 100:
+                    to_remove.append(org)
             else:
-                starvation_time = 0
+                # Carnivore logic: Check for herbivore at the same position
+                for target in self.organisms:
+                    if not target.canbalism and (target.x, target.y) == pos and target not in to_remove:
+                        to_remove.append(target)  # Remove herbivore
+                        new_organisms.append(org.division())  # Carnivore divides upon consuming herbivore
+                        break  # Carnivore eats only one herbivore per frame
 
-            # Kill organism if no food in 500 frames
-            if starvation_time >= 100:
-                to_remove.append(org)
-
-        # Remove dead organisms
+        # Remove organisms that should be removed
         for org in to_remove:
-            self.organisms.remove(org)
+            if org in self.organisms:
+                self.organisms.remove(org)
             self.organism_timers.pop(org, None)
             self.food_touch_time.pop(org, None)
 
-        # Add new organisms
+        # Add new organisms (carnivore divisions)
         self.organisms.extend(new_organisms)
 
-        # Respawn food every 300 frames
+        # Food respawn logic
         if frame - self.last_food_spawn_time >= self.food_timer and len(self.food_positions) == 0:
             self.food_positions = self.spawn_food()
             self.last_food_spawn_time = frame
 
-        # Update scatter plot
-        org_positions = self.position()
-        scatter.set_offsets(np.c_[org_positions[0], org_positions[1]])
+        # Update scatter data
+        herb_x, herb_y = zip(*[(o.x, o.y) for o in self.organisms if not o.canbalism]) if any(
+            not o.canbalism for o in self.organisms) else ([], [])
+        carn_x, carn_y = zip(*[(o.x, o.y) for o in self.organisms if o.canbalism]) if any(
+            o.canbalism for o in self.organisms) else ([], [])
         food_x, food_y = zip(*self.food_positions) if self.food_positions else ([], [])
-        food_scatter.set_offsets(np.c_[food_x, food_y])
-        print(speed)
 
-        return scatter, food_scatter
+        herbivore_scatter.set_offsets(np.c_[herb_x, herb_y])
+        carnivore_scatter.set_offsets(np.c_[carn_x, carn_y])
+        food_scatter.set_offsets(np.c_[food_x, food_y])
+
+        return herbivore_scatter, carnivore_scatter, food_scatter
 
     def animate(self, fig, ax):
         ax.set_xticks(np.arange(0, self.size, 1), minor=True)
@@ -102,10 +91,12 @@ class Grid:
         ax.set_xlim(0, self.size)
         ax.set_ylim(0, self.size)
 
-        food_scatter = ax.scatter([], [], c='green', s=30)
-        scatter = ax.scatter([], [], c='red', s=20,marker='s')
-        ax.set_facecolor('blue')
+        herbivore_scatter = ax.scatter([], [], c='red', s=20, marker='s', label="Herbivores")
+        carnivore_scatter = ax.scatter([], [], c='blue', s=30, marker='o', label="Carnivores")
+        food_scatter = ax.scatter([], [], c='green', s=30, marker='x', label="Food")
 
+        ax.legend(loc="upper right")
 
-        ani = animation.FuncAnimation(fig, self.update, interval=100, fargs=(scatter, food_scatter), blit=True)
+        ani = animation.FuncAnimation(fig, self.update, interval=100,
+                                      fargs=(herbivore_scatter, carnivore_scatter, food_scatter), blit=True)
         plt.show()
