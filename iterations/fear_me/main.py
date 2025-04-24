@@ -6,7 +6,7 @@ from organism import Organism
 # Parameters
 grid_size = 50
 num_herbivores = 20  # Increased from 10
-num_carnivores = 2
+num_carnivores = 1
 num_food = 250  # Increased from 150
 
 # Create organisms

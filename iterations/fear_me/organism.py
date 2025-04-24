@@ -6,20 +6,20 @@ class Organism:
         self.x = x
         self.y = y
         self.grid_size = grid_size
-        self.food_gene = 0.2
+        self.food_gene = 0.15
         self.speed = 0.3
         self.cannibalism = cannibalism
-        self.carnivore_detection = 10  # Increased from 7
+        self.carnivore_detection = 9  # Increased from 7
         self.age = 0
-        self.lifespan = np.random.randint(150, 300) if not cannibalism else np.random.randint(400, 600)  # Reduced from 800–950
-        self.memory = 0.5 if not cannibalism else 0.0
-        self.fear = 0.0 if not cannibalism else 0.0
+        self.lifespan = np.random.randint(875, 1000) if not cannibalism else np.random.randint(750, 950)  # Reduced from 800–950
+        self.memory = 0.25 if not cannibalism else 0.0
+        self.fear = 0.75 if not cannibalism else 0.0
         self.known_carnivores = set() if not cannibalism else None
         self.last_food_location = None
         self.memory_timer = 0
-        self.memory_decay_base = 150
-        self.visibility_radius = 5
-        self.communication_radius = 3
+        self.memory_decay_base = 125
+        self.visibility_radius = 4.75
+        self.communication_radius = 6.5
         self.energy_efficiency = 1.0
 
     def gene_food(self, food_positions):
@@ -37,7 +37,7 @@ class Organism:
                     min_distance = dist
 
         if nearest_threat:
-            self.fear = min(1.0, self.fear + 0.4)  # Increased from 0.3
+            self.fear = min(1.0, self.fear + 0.45)  # Increased from 0.3
             effective_speed = self.speed * (1 + self.fear)
             if random.random() < effective_speed:
                 dx = -np.sign(nearest_threat.x - self.x)
@@ -100,7 +100,7 @@ class Organism:
             if self.memory_timer >= memory_decay or random.random() > self.memory:
                 self.last_food_location = None
                 self.memory_timer = 0
-        self.fear = max(0.0, self.fear - 0.005)
+        self.fear = max(0.0, self.fear - 0.05)
 
         if self.cannibalism:
             self.move_towards_prey(other_organisms)
@@ -139,7 +139,7 @@ class Organism:
         dist = abs(prey_pos[0] - self.x) + abs(prey_pos[1] - self.y)
         if dist <= self.visibility_radius:
             self.known_carnivores.add(carnivore)
-            self.fear = min(1.0, self.fear + 0.5)  # Increased from 0.4
+            self.fear = min(1.0, self.fear + 0.55)  # Increased from 0.4
             return True
         return False
 
@@ -149,4 +149,4 @@ class Organism:
                 dist = abs(org.x - self.x) + abs(org.y - self.y)
                 if dist <= self.communication_radius:
                     org.known_carnivores.add(carnivore)
-                    org.fear = min(1.0, org.fear + 0.4)  # Increased from 0.3
+                    org.fear = min(1.0, org.fear + 0.45)  # Increased from 0.3
