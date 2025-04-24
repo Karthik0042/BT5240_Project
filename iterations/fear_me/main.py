@@ -5,9 +5,9 @@ from organism import Organism
 
 # Parameters
 grid_size = 50
-num_herbivores = 15  # Increased from 10
+num_herbivores = 20  # Increased from 10
 num_carnivores = 2
-num_food = 200  # Increased from 150
+num_food = 250  # Increased from 150
 
 # Create organisms
 organisms = [
@@ -32,7 +32,7 @@ herbivore_trait_ax = fig.add_subplot(234)
 carnivore_trait_ax = fig.add_subplot(235)
 food_gene_ax = fig.add_subplot(236)
 grid_ax.set_title("Grid Simulation: Herbivores (Red), Carnivores (Blue)")
-fig.tight_layout(pad=3.0)
+fig.tight_layout(pad=4.0)
 
 # Animate
 g.animate(fig, grid_ax, memory_fear_ax, herbivore_memory_fear_lifespan_ax, herbivore_trait_ax, carnivore_trait_ax, food_gene_ax)

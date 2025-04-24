@@ -9,7 +9,7 @@ class Organism:
         self.food_gene = 0.2
         self.speed = 0.3
         self.cannibalism = cannibalism
-        self.carnivore_detection = 8  # Increased from 7
+        self.carnivore_detection = 10  # Increased from 7
         self.age = 0
         self.lifespan = np.random.randint(150, 300) if not cannibalism else np.random.randint(400, 600)  # Reduced from 800–950
         self.memory = 0.5 if not cannibalism else 0.0

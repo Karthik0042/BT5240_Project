@@ -9,18 +9,17 @@ class Grid:
         self.size = size
         self.organisms = []
         self.time_steps = 0
-        self.last_food_spawn_time = 0
         self.num_food = num_food
         self.food_seed = food_seed
-        self.fertility_map = self.generate_fertility_map()
         self.food_positions = self.spawn_initial_food()
+        self.initial_food_positions = set(self.food_positions)  # Store fixed food locations
         self.food_touch_time = {}
-        self.carnivore_division_probab = 0.25
+        self.carnivore_division_probab = 0.15
         self.carnivore_last_meal_time = {}
-        self.carnivore_starvation_time = 600
+        self.carnivore_starvation_time = 400
 
         self.food_respawn_timer = {}
-        self.food_respawn_delay = 100
+        self.food_respawn_delay = 80
 
         self.trait_history = {
             'herbivore_food_gene': [],
@@ -36,30 +35,26 @@ class Grid:
         }
         self.memory_fear_history = []
 
-    def generate_fertility_map(self):
-        rng = np.random.default_rng(self.food_seed)
-        fertility = rng.uniform(0.5, 1.5, (self.size, self.size))
-        return fertility
-
     def spawn_initial_food(self):
         rng = np.random.default_rng(self.food_seed)
         food_positions = []
-        for _ in range(self.num_food):
-            while True:
-                x, y = rng.integers(0, self.size, 2)
-                if random.random() < self.fertility_map[x, y] / 1.5:
-                    food_positions.append((x, y))
-                    break
+        positions = set()
+        while len(food_positions) < self.num_food:
+            x, y = rng.integers(0, self.size, 2)
+            pos = (x, y)
+            if pos not in positions:
+                food_positions.append(pos)
+                positions.add(pos)
         return food_positions
 
     def spawn_dynamic_food(self, frame):
-        if frame - self.last_food_spawn_time < 50:
-            return
-        self.last_food_spawn_time = frame
-        for x in range(self.size):
-            for y in range(self.size):
-                if (x, y) not in self.food_positions and random.random() < self.fertility_map[x, y] * 0.01:
-                    self.food_positions.append((x, y))
+        # Only respawn food at initial positions after delay
+        to_respawn = [pos for pos, eaten_frame in self.food_respawn_timer.items()
+                      if frame - eaten_frame >= self.food_respawn_delay]
+        for pos in to_respawn:
+            if pos not in self.food_positions and pos in self.initial_food_positions:
+                self.food_positions.append(pos)
+            del self.food_respawn_timer[pos]
 
     def add_organisms(self, organisms):
         self.organisms = organisms
@@ -76,7 +71,7 @@ class Grid:
         self.spawn_dynamic_food(frame)
 
         for org in self.organisms:
-            movement_cost = 1.0 / self.fertility_map[org.x, org.y]
+            movement_cost = 1.0  # Fixed movement cost, no fertility map
             org.move(self.food_positions, self.organisms, movement_cost)
             pos = (org.x, org.y)
 
@@ -129,7 +124,7 @@ class Grid:
             if len(orgs) > 1:  # Collision detected
                 collisions += len(orgs)
                 for org in orgs:
-                    org.lifespan = max(50, org.lifespan - 50)  # Reduce lifespan by 50
+                    org.lifespan = max(50, org.lifespan - 75)
 
         for org in to_remove:
             if org in self.organisms:
@@ -141,13 +136,6 @@ class Grid:
         for new_org in new_organisms:
             if new_org.cannibalism:
                 self.carnivore_last_meal_time[new_org] = frame
-
-        to_respawn = [pos for pos, eaten_frame in self.food_respawn_timer.items()
-                      if frame - eaten_frame >= self.food_respawn_delay]
-        for pos in to_respawn:
-            if pos not in self.food_positions:
-                self.food_positions.append(pos)
-            del self.food_respawn_timer[pos]
 
         herb_positions = [(o.x, o.y) for o in self.organisms if not o.cannibalism]
         carn_positions = [(o.x, o.y) for o in self.organisms if o.cannibalism]
@@ -173,10 +161,11 @@ class Grid:
         self.trait_history['carnivore_lifespan'].append(np.mean([o.lifespan for o in carnivores]) if carnivores else 0)
         self.trait_history['carnivore_energy_efficiency'].append(np.mean([o.energy_efficiency for o in carnivores]) if carnivores else 0)
 
-        # Log population, collisions, and lifespans
+        # Log population, collisions, lifespans, and memory
         if frame % 100 == 0:
             print(f"Frame {frame}: Herbivores={len(herbivores)}, Carnivores={len(carnivores)}, "
-                  f"Collisions={collisions}, Avg Fear={self.trait_history['herbivore_fear'][-1]:.3f}, "
+                  f"Collisions={collisions}, Avg Memory={self.trait_history['herbivore_memory'][-1]:.3f}, "
+                  f"Avg Fear={self.trait_history['herbivore_fear'][-1]:.3f}, "
                   f"Avg Herbivore Lifespan={self.trait_history['herbivore_lifespan'][-1]:.1f}, "
                   f"Avg Carnivore Lifespan={self.trait_history['carnivore_lifespan'][-1]:.1f}")
 
@@ -226,7 +215,7 @@ class Grid:
         memory_fear_ax.set_xlim(0, 1)
         memory_fear_ax.set_ylim(0, 1)
         memory_fear_ax.set_xlabel('Herbivore Memory')
-        memory_fear_ax.set_ylabel('Herbivore Fear', fontsize=8, labelpad=0.5)  # Reduced labelpad
+        memory_fear_ax.set_ylabel('Herbivore Fear', fontsize=8, labelpad=2)
         memory_fear_ax.set_title('Memory vs. Fear (All Time Steps)')
         memory_fear_ax.grid(True)
 
@@ -238,14 +227,14 @@ class Grid:
         herbivore_memory_fear_lifespan_ax.set_xlim(0, 1000)
         herbivore_memory_fear_lifespan_ax.set_ylim(0, 1)
         herbivore_memory_fear_lifespan_ax.set_xlabel('Time Steps')
-        herbivore_memory_fear_lifespan_ax.set_ylabel('Memory / Fear', fontsize=8, labelpad=0.5)  # Reduced labelpad
+        herbivore_memory_fear_lifespan_ax.set_ylabel('Memory / Fear', fontsize=8, labelpad=2)
         herbivore_memory_fear_lifespan_ax.grid(True)
 
         herbivore_memory_fear_lifespan_ax2 = herbivore_memory_fear_lifespan_ax.twinx()
         line, = herbivore_memory_fear_lifespan_ax2.plot([], [], label='Herbivore Lifespan', linestyle='--')
         herbivore_memory_fear_lifespan_lines.append(line)
         herbivore_memory_fear_lifespan_ax2.set_ylim(0, 1000)
-        herbivore_memory_fear_lifespan_ax2.set_ylabel('Lifespan', fontsize=8, labelpad=2)  # Reduced labelpad
+        herbivore_memory_fear_lifespan_ax2.set_ylabel('Lifespan', fontsize=8, labelpad=2)
 
         lines1, labels1 = herbivore_memory_fear_lifespan_ax.get_legend_handles_labels()
         lines2, labels2 = herbivore_memory_fear_lifespan_ax2.get_legend_handles_labels()
@@ -260,14 +249,14 @@ class Grid:
         herbivore_trait_ax.set_xlim(0, 1000)
         herbivore_trait_ax.set_ylim(0, 2)
         herbivore_trait_ax.set_xlabel('Time Steps')
-        herbivore_trait_ax.set_ylabel('Speed / Energy Efficiency', fontsize=8, labelpad=0.5)  # Reduced labelpad
+        herbivore_trait_ax.set_ylabel('Speed / Energy Efficiency', fontsize=8, labelpad=2)
         herbivore_trait_ax.grid(True)
 
         herbivore_trait_ax2 = herbivore_trait_ax.twinx()
         line, = herbivore_trait_ax2.plot([], [], label='Herbivore Lifespan', linestyle='--')
         herbivore_trait_lines.append(line)
         herbivore_trait_ax2.set_ylim(0, 1000)
-        herbivore_trait_ax2.set_ylabel('Lifespan', fontsize=8, labelpad=0.5)  # Reduced labelpad
+        herbivore_trait_ax2.set_ylabel('Lifespan', fontsize=8, labelpad=2)
 
         lines1, labels1 = herbivore_trait_ax.get_legend_handles_labels()
         lines2, labels2 = herbivore_trait_ax2.get_legend_handles_labels()
@@ -282,14 +271,14 @@ class Grid:
         carnivore_trait_ax.set_xlim(0, 1000)
         carnivore_trait_ax.set_ylim(0, 2)
         carnivore_trait_ax.set_xlabel('Time Steps')
-        carnivore_trait_ax.set_ylabel('Speed / Energy Efficiency', fontsize=8, labelpad=0.5)  # Reduced labelpad
+        carnivore_trait_ax.set_ylabel('Speed / Energy Efficiency', fontsize=8, labelpad=2)
         carnivore_trait_ax.grid(True)
 
         carnivore_trait_ax2 = carnivore_trait_ax.twinx()
         line, = carnivore_trait_ax2.plot([], [], label='Carnivore Lifespan', linestyle='--')
         carnivore_trait_lines.append(line)
         carnivore_trait_ax2.set_ylim(0, 1000)
-        carnivore_trait_ax2.set_ylabel('Lifespan', fontsize=8, labelpad=0.5)  # Reduced labelpad
+        carnivore_trait_ax2.set_ylabel('Lifespan', fontsize=8, labelpad=2)
 
         lines1, labels1 = carnivore_trait_ax.get_legend_handles_labels()
         lines2, labels2 = carnivore_trait_ax2.get_legend_handles_labels()
@@ -304,7 +293,7 @@ class Grid:
         food_gene_ax.set_xlim(0, 1000)
         food_gene_ax.set_ylim(0, 1)
         food_gene_ax.set_xlabel('Time Steps')
-        food_gene_ax.set_ylabel('Food Gene', fontsize=8, labelpad=0.5)  # Reduced labelpad
+        food_gene_ax.set_ylabel('Food Gene', fontsize=8, labelpad=2)
         food_gene_ax.set_title('Food Genes Over Time')
         food_gene_ax.legend(loc='upper left')
         food_gene_ax.grid(True)
