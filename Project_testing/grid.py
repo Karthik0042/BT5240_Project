@@ -10,16 +10,18 @@ class Grid:
         self.organisms = []
         self.time_steps = 0
         self.last_food_spawn_time = 0
-        self.food_timer = 200
         self.num_food = num_food
         self.food_seed = food_seed
-        self.fixed_food_positions = self.generate_fixed_food()  # Fixed positions
+        self.fixed_food_positions = self.generate_fixed_food()
         self.food_positions = list(self.fixed_food_positions)
-        self.organism_timers = {}
         self.food_touch_time = {}
         self.carnivore_division_probab = 0.4
         self.carnivore_last_meal_time = {}
-        self.carnivore_starvation_time = 100  # frames before a carnivore dies from starvation
+        self.carnivore_starvation_time = 1000000
+
+        # New for individual food regeneration
+        self.food_respawn_timer = {}  # {pos: frame_when_eaten}
+        self.food_respawn_delay = 200  # frames to wait before respawning eaten food
 
     def generate_fixed_food(self):
         rng = np.random.default_rng(self.food_seed)
@@ -28,11 +30,9 @@ class Grid:
     def spawn_food(self):
         return list(self.fixed_food_positions)
 
-
     def add_organisms(self, organisms):
         self.organisms = organisms
         for org in organisms:
-            self.organism_timers[org] = 0
             if org.canbalism:
                 self.carnivore_last_meal_time[org] = 0
 
@@ -44,22 +44,23 @@ class Grid:
             org.move(self.food_positions, self.organisms)
             pos = (org.x, org.y)
 
-            if org not in self.organism_timers:
-                self.organism_timers[org] = frame
+            # Death by age
+            if org.is_dead():
+                to_remove.append(org)
+                continue
 
+            # Herbivore logic
             if not org.canbalism:
                 if pos in self.food_positions:
                     self.food_positions.remove(pos)
-                    self.organism_timers[org] = frame
+                    self.food_respawn_timer[pos] = frame  # Mark for delayed respawn
                     self.food_touch_time[org] = frame
 
                 if org in self.food_touch_time and frame - self.food_touch_time[org] >= 5:
                     new_organisms.append(org.division())
                     del self.food_touch_time[org]
 
-                if frame - self.organism_timers[org] >= 100:
-                    to_remove.append(org)
-
+            # Carnivore logic
             else:
                 fed = False
                 for target in self.organisms:
@@ -71,28 +72,31 @@ class Grid:
                             new_organisms.append(org.division())
                         break
 
-                # Starvation check
-                if org in self.carnivore_last_meal_time:
-                    if frame - self.carnivore_last_meal_time[org] >= self.carnivore_starvation_time:
-                        to_remove.append(org)
+                if org in self.carnivore_last_meal_time and frame - self.carnivore_last_meal_time[org] >= self.carnivore_starvation_time:
+                    to_remove.append(org)
 
+        # Cleanup removed organisms
         for org in to_remove:
             if org in self.organisms:
                 self.organisms.remove(org)
-            self.organism_timers.pop(org, None)
             self.food_touch_time.pop(org, None)
             self.carnivore_last_meal_time.pop(org, None)
 
+        # Add new organisms
         self.organisms.extend(new_organisms)
         for new_org in new_organisms:
             if new_org.canbalism:
                 self.carnivore_last_meal_time[new_org] = frame
-            self.organism_timers[new_org] = frame
 
-        if frame - self.last_food_spawn_time >= self.food_timer and len(self.food_positions) == 0:
-            self.food_positions = self.spawn_food()
-            self.last_food_spawn_time = frame
+        # Individual food respawn
+        to_respawn = [pos for pos, eaten_frame in self.food_respawn_timer.items()
+                      if frame - eaten_frame >= self.food_respawn_delay]
+        for pos in to_respawn:
+            if pos not in self.food_positions:
+                self.food_positions.append(pos)
+            del self.food_respawn_timer[pos]
 
+        # Update plot positions
         herb_x, herb_y = zip(*[(o.x, o.y) for o in self.organisms if not o.canbalism]) if any(
             not o.canbalism for o in self.organisms) else ([], [])
         carn_x, carn_y = zip(*[(o.x, o.y) for o in self.organisms if o.canbalism]) if any(

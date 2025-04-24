@@ -10,13 +10,13 @@ class Organism:
 
         # Core traits with trade-offs
         if self.canbalism:
-            self.speed = np.clip(np.random.normal(0.7, 0.1), 0.4, 1.0)
+            self.speed = np.clip(np.random.normal(0.1, 0.1), 0.1, 1.0)
             self.lifespan = int(np.clip(np.random.normal(600 - self.speed * 400, 30), 100, 950))
-            self.food_gene = np.clip(np.random.normal(0.2, 0.05), 0.05, 0.5)
+            self.food_gene = np.clip(np.random.normal(0.1, 0.05), 0.05, 0.7)
             self.carnivore_detection = 0  # not used
         else:
-            self.speed = np.clip(np.random.normal(0.3, 0.05), 0.1, 0.6)
-            self.carnivore_detection = np.clip(np.random.normal(5, 1), 2, 10)
+            self.speed = np.clip(np.random.normal(0.05, 0.05), 0, 0.8)
+            self.carnivore_detection = np.clip(np.random.normal(1, 1), 0, 10)
             self.lifespan = int(np.clip(np.random.normal(200 + self.carnivore_detection * 10 - self.speed * 100, 20), 100, 400))
             self.food_gene = np.clip(1 - self.carnivore_detection / 10.0, 0.1, 0.9)
 
@@ -105,7 +105,7 @@ class Organism:
     def division(self):
         mutate_to_carnivore = False
         if not self.canbalism:
-            mutate_to_carnivore = random.random() < 0.1
+            mutate_to_carnivore = random.random() < 0.05
 
         offspring = Organism(self.x, self.y, self.grid_size, canbalism=mutate_to_carnivore or self.canbalism)
 
@@ -123,3 +123,4 @@ class Organism:
             offspring.lifespan = int(np.clip(self.lifespan + np.random.normal(0, 10), 100, 400))
 
         return offspring
+
