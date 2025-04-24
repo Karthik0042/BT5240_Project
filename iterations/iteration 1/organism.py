@@ -6,21 +6,12 @@ class Organism:
         self.x = x
         self.y = y
         self.grid_size = grid_size
+        self.food_gene = 0.2
+        self.speed = 0.3
         self.canbalism = canbalism
-
-        # Core traits with trade-offs
-        if self.canbalism:
-            self.speed = np.clip(np.random.normal(0.1, 0.1), 0.1, 1.0)
-            self.lifespan = int(np.clip(np.random.normal(600 - self.speed * 400, 30), 100, 950))
-            self.food_gene = np.clip(np.random.normal(0.1, 0.05), 0.05, 0.7)
-            self.carnivore_detection = 0  # not used
-        else:
-            self.speed = np.clip(np.random.normal(0.05, 0.05), 0, 0.8)
-            self.carnivore_detection = np.clip(np.random.normal(1, 1), 0, 10)
-            self.lifespan = int(np.clip(np.random.normal(200 + self.carnivore_detection * 10 - self.speed * 100, 20), 100, 400))
-            self.food_gene = np.clip(1 - self.carnivore_detection / 10.0, 0.1, 0.9)
-
+        self.carnivore_detection = 5  # Used only by herbivores
         self.age = 0
+        self.lifespan = np.random.randint(150, 300) if not canbalism else np.random.randint(800, 950)
 
     def gene_food(self, food_positions):
         return self.food_gene if food_positions else 0.0
@@ -103,24 +94,15 @@ class Organism:
         return self.age >= self.lifespan
 
     def division(self):
-        mutate_to_carnivore = False
+        offspring = Organism(self.x, self.y, self.grid_size, canbalism=self.canbalism)
+        offspring.food_gene = self.food_gene + np.random.normal(0, 0.1)
+        offspring.speed = self.speed + np.random.normal(0, 0.1)
+
         if not self.canbalism:
-            mutate_to_carnivore = random.random() < 0.05
-
-        offspring = Organism(self.x, self.y, self.grid_size, canbalism=mutate_to_carnivore or self.canbalism)
-
-        if offspring.canbalism:
-            # Carnivore: speed ↑ → lifespan ↓
-            offspring.speed = np.clip(self.speed + np.random.normal(0, 0.05), 0.4, 1.0)
-            offspring.lifespan = int(np.clip(600 - offspring.speed * 400 + np.random.normal(0, 10), 100, 950))
-            offspring.food_gene = np.clip(self.food_gene + np.random.normal(0, 0.05), 0.05, 0.5)
-            offspring.carnivore_detection = 0  # unused
+            offspring.canbalism = random.random() < 0.1
+            offspring.carnivore_detection = self.carnivore_detection + np.random.normal(0, 0.5)
+            offspring.lifespan = max(30, self.lifespan + int(np.random.normal(0, 10)))
+            offspring.carnivore_detection = self.carnivore_detection +np.random.normal(0.5,1)
         else:
-            # Herbivore: detection ↑ → food gene ↓
-            offspring.carnivore_detection = np.clip(self.carnivore_detection + np.random.normal(0, 0.5), 2, 10)
-            offspring.speed = np.clip(self.speed + np.random.normal(0, 0.05), 0.1, 0.6)
-            offspring.food_gene = np.clip(1 - offspring.carnivore_detection / 10.0, 0.1, 0.9)
-            offspring.lifespan = int(np.clip(self.lifespan + np.random.normal(0, 10), 100, 400))
-
+            offspring.lifespan = max(50, self.lifespan + int(np.random.normal(0, 5)))
         return offspring
-

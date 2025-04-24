@@ -15,9 +15,9 @@ class Grid:
         self.fixed_food_positions = self.generate_fixed_food()
         self.food_positions = list(self.fixed_food_positions)
         self.food_touch_time = {}
-        self.carnivore_division_probab = 0.2
+        self.carnivore_division_probab = 0.4
         self.carnivore_last_meal_time = {}
-        self.carnivore_starvation_time = 1000
+        self.carnivore_starvation_time = 1000000
 
         # New for individual food regeneration
         self.food_respawn_timer = {}  # {pos: frame_when_eaten}
@@ -56,7 +56,7 @@ class Grid:
                     self.food_respawn_timer[pos] = frame  # Mark for delayed respawn
                     self.food_touch_time[org] = frame
 
-                if org in self.food_touch_time and frame - self.food_touch_time[org] >= 15:
+                if org in self.food_touch_time and frame - self.food_touch_time[org] >= 5:
                     new_organisms.append(org.division())
                     del self.food_touch_time[org]
 
@@ -118,8 +118,8 @@ class Grid:
         ax.set_xlim(0, self.size)
         ax.set_ylim(0, self.size)
 
-        herbivore_scatter = ax.scatter([], [], c='blue', s=20, marker='s', label="Herbivores")
-        carnivore_scatter = ax.scatter([], [], c='red', s=30, marker='o', label="Carnivores")
+        herbivore_scatter = ax.scatter([], [], c='red', s=20, marker='s', label="Herbivores")
+        carnivore_scatter = ax.scatter([], [], c='blue', s=30, marker='o', label="Carnivores")
         food_scatter = ax.scatter([], [], c='green', s=30, marker='x', label="Food")
 
         ax.legend(loc="upper right")

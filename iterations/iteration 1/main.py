@@ -4,7 +4,7 @@ from grid import Grid
 from organism import Organism
 
 # Parameters
-grid_size = 75
+grid_size = 50
 num_herbivores = 5
 num_carnivores = 0
 num_food = 100
