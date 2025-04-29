@@ -2,26 +2,47 @@ import random
 import numpy as np
 
 class Organism:
-    def __init__(self, x, y, grid_size, cannibalism=False):
+    _id_counter = 0  # Unique ID for lineage tracking
+
+    def __init__(self, x, y, grid_size, cannibalism=False, lineage=None):
         self.x = x
         self.y = y
         self.grid_size = grid_size
         self.cannibalism = cannibalism
-        self.rest_timer = 0  # New: Rest period counter
+        self.rest_timer = 0
+
+        # Unique ID and lineage for carnivores
+        self.id = Organism._id_counter
+        Organism._id_counter += 1
+        if cannibalism:
+            if lineage is None:
+                self.lineage = set([self.id])
+            else:
+                self.lineage = set(lineage)
+                self.lineage.add(self.id)
+        else:
+            self.lineage = None
 
         # Base traits
         self.food_gene = 0.15
         self.speed = 0.3 if not cannibalism else 0.5
-        self.carnivore_detection = 9 if not cannibalism else 0
+        self.carnivore_detection = 4 if not cannibalism else 0
 
         # Lifespan and aging
         self.age = 0
         self.lifespan = np.random.randint(875, 1000) if not cannibalism else np.random.randint(900, 1200)
 
         # Herbivore-specific traits
-        self.memory = 0.3 if not cannibalism else 0.0
-        self.fear = 0.5 if not cannibalism else 0.0
-        self.known_carnivores = set() if not cannibalism else None
+        if not cannibalism:
+            self.memory = 0.3
+            self.fear = 0.2
+            self.known_carnivore_ids = set()
+            self.carnivore_sense = np.clip(np.random.normal(0.8, 0.2), 0, 1)
+        else:
+            self.memory = 0.0
+            self.fear = 0.0
+            self.known_carnivore_ids = None
+            self.carnivore_sense = 0.0
 
         # Memory system
         self.last_food_location = None
@@ -38,31 +59,37 @@ class Organism:
         return self.food_gene if food_positions else 0.0
 
     def detect_and_flee(self, other_organisms):
-        if not self.known_carnivores:
+        if self.cannibalism:
             return False
 
         nearest_threat = None
         min_distance = float('inf')
-
-        # Dynamic detection range based on fear (PMC7196326)
         effective_detection = self.carnivore_detection * (1 + 0.5 * self.fear)
 
         for org in other_organisms:
-            if org in self.known_carnivores:
+            if not org.cannibalism:
+                continue
+
+            known = False
+            # Only check lineage if present
+            if hasattr(org, 'lineage') and org.lineage is not None and self.known_carnivore_ids and self.known_carnivore_ids.intersection(org.lineage):
+                known = True
+            elif self.carnivore_sense > 0 and random.random() < self.carnivore_sense:
+                # Sensed as carnivore, add all its lineage to known_carnivore_ids for future
+                if hasattr(org, 'lineage') and org.lineage is not None:
+                    self.known_carnivore_ids.update(org.lineage)
+                known = True
+
+            if known:
                 dist = abs(org.x - self.x) + abs(org.y - self.y)
                 if dist <= effective_detection and dist < min_distance:
                     nearest_threat = org
                     min_distance = dist
 
         if nearest_threat:
-            # Sigmoid fear response (WorldScientific)
             fear_increase = 0.8 / (1 + np.exp(-0.5 * (min_distance - 3)))
             self.fear = min(1.0, self.fear + fear_increase)
-
-            # Energy cost of fleeing (Frontiers)
             self.energy_efficiency = max(0.5, self.energy_efficiency - 0.1 * fear_increase)
-
-            # Movement probability with diminishing returns (PMC7196326)
             effective_speed = self.speed * (1 + 2.5 * (self.fear ** 0.7))
             if random.random() < effective_speed:
                 dx = -np.sign(nearest_threat.x - self.x)
@@ -119,6 +146,7 @@ class Organism:
     def move(self, food_positions, other_organisms, movement_cost=1.0):
         self.age += movement_cost * (1 + self.fear)
         self.frames_since_last_food += 1
+
         if not self.cannibalism:
             self.communicate_carnivore(other_organisms)
 
@@ -151,8 +179,12 @@ class Organism:
         return self.age >= self.lifespan
 
     def division(self, carnivores_exist=False):
-        offspring = Organism(self.x, self.y, self.grid_size, cannibalism=self.cannibalism)
-        offspring.known_carnivores = set() if not offspring.cannibalism else None
+        if self.cannibalism:
+            offspring = Organism(self.x, self.y, self.grid_size, cannibalism=True, lineage=self.lineage)
+        else:
+            offspring = Organism(self.x, self.y, self.grid_size, cannibalism=False)
+            offspring.known_carnivore_ids = set(self.known_carnivore_ids)
+            offspring.carnivore_sense = np.clip(np.random.normal(self.carnivore_sense, 0.05), 0, 1)
 
         # Reproduction thresholds
         if not self.cannibalism and self.frames_since_last_food >= 40:
@@ -183,7 +215,7 @@ class Organism:
             offspring.visibility_radius = max(1, self.visibility_radius + vis_mut)
             offspring.communication_radius = max(1, self.communication_radius * np.exp(-abs(vis_mut) / 5))
 
-            mutation_chance = 0.05 if carnivores_exist else 0.15
+            mutation_chance = 0.005 if carnivores_exist else 0.15
             offspring.cannibalism = random.random() < mutation_chance
         else:
             accuracy_mut = np.random.normal(0, 0.05)
@@ -197,29 +229,31 @@ class Organism:
 
     def witness_cannibalization(self, carnivore, prey_pos):
         dist = abs(prey_pos[0] - self.x) + abs(prey_pos[1] - self.y)
-        if dist <= self.visibility_radius:
-            self.known_carnivores.add(carnivore)
+        if dist <= self.visibility_radius and not self.cannibalism:
+            if hasattr(carnivore, 'lineage') and carnivore.lineage is not None:
+                self.known_carnivore_ids.update(carnivore.lineage)
             self.fear = min(1.0, self.fear + 0.6)
-            self.communicate_carnivore(carnivore)
+            self.communicate_carnivore(None)
             return True
         return False
 
     def communicate_carnivore(self, other_organisms):
-        """Networked fear propagation using spatial decay"""
-        comm_radius = self.communication_radius * (1 + 0.3 * self.fear)
+        if self.cannibalism or not hasattr(self, 'known_carnivore_ids'):
+            return
+        if other_organisms is None:
+            return
 
+        comm_radius = self.communication_radius * (1 + 0.3 * self.fear)
         for org in other_organisms:
             if not org.cannibalism and org != self:
                 dist = abs(org.x - self.x) + abs(org.y - self.y)
                 if dist <= comm_radius:
-                    # Transfer knowledge with spatial decay
-                    org.known_carnivores.update(self.known_carnivores)
-
-                    # Fear transfer (diminishes with distance)
-                    fear_transfer = 0.4 * (1 - dist / comm_radius)
-                    org.fear = min(1.0, org.fear + fear_transfer * (1 - org.fear))
-
-                    # Collective memory enhancement
-                    org.memory = min(1.0, org.memory + 0.1 * fear_transfer)
-
-
+                    if hasattr(org, 'known_carnivore_ids') and self.known_carnivore_ids:
+                        before = len(org.known_carnivore_ids)
+                        org.known_carnivore_ids.update(self.known_carnivore_ids)
+                        after = len(org.known_carnivore_ids)
+                        if after > before:
+                            org.communicate_carnivore(other_organisms)
+                        fear_transfer = 0.4 * (1 - dist / comm_radius)
+                        org.fear = min(1.0, org.fear + fear_transfer * (1 - org.fear))
+                        org.memory = min(1.0, org.memory + 0.1 * fear_transfer)

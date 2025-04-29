@@ -15,9 +15,9 @@ class Grid:
         self.fixed_food_positions = self.generate_fixed_food()
         self.food_positions = list(self.fixed_food_positions)
         self.food_touch_time = {}
-        self.carnivore_division_probab = 0.2
+        self.carnivore_division_probab = 0.1
         self.carnivore_last_meal_time = {}
-        self.carnivore_starvation_time = 1000000
+        self.carnivore_starvation_time = 100
 
         # New for individual food regeneration
         self.food_respawn_timer = {}  # {pos: frame_when_eaten}

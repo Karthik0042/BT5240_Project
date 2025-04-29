@@ -15,13 +15,20 @@ class Grid:
         self.fixed_food_positions = self.generate_fixed_food()
         self.food_positions = list(self.fixed_food_positions)
         self.food_touch_time = {}
-        self.carnivore_division_probab = 0.2
+        self.carnivore_division_probab = 0.1
         self.carnivore_last_meal_time = {}
-        self.carnivore_starvation_time = 1000000
+        self.carnivore_starvation_time = 150
 
         # New for individual food regeneration
         self.food_respawn_timer = {}  # {pos: frame_when_eaten}
         self.food_respawn_delay = 200  # frames to wait before respawning eaten food
+
+        # Dynamic food event system
+        self.food_event = "normal"  # can be "normal", "drought", "abundance"
+        self.food_event_timer = 0
+        self.food_event_duration = 0
+        self.base_food_respawn_delay = 200
+        self.base_num_food = num_food
 
     def generate_fixed_food(self):
         rng = np.random.default_rng(self.food_seed)
@@ -33,10 +40,47 @@ class Grid:
     def add_organisms(self, organisms):
         self.organisms = organisms
         for org in organisms:
-            if org.cannibalism:
+            if hasattr(org, "cannibalism") and org.cannibalism:
                 self.carnivore_last_meal_time[org] = 0
 
+    def trigger_food_event(self):
+        # Randomly trigger a food event with a small probability
+        if self.food_event_timer == 0 and random.random() < 0.01:
+            event = random.choices(
+                ["drought", "abundance", "normal"],
+                weights=[0.2, 0.15, 0.65]
+            )[0]
+            if event == "drought":
+                self.food_event = "drought"
+                self.food_event_duration = random.randint(200, 400)
+                self.food_respawn_delay = int(self.base_food_respawn_delay * 2.5)
+                self.num_food = max(5, int(self.base_num_food * 0.4))
+            elif event == "abundance":
+                self.food_event = "abundance"
+                self.food_event_duration = random.randint(150, 300)
+                self.food_respawn_delay = int(self.base_food_respawn_delay * 0.5)
+                self.num_food = int(self.base_num_food * 1.5)
+            else:
+                self.food_event = "normal"
+                self.food_event_duration = random.randint(300, 600)
+                self.food_respawn_delay = self.base_food_respawn_delay
+                self.num_food = self.base_num_food
+            self.food_event_timer = self.food_event_duration
+            print(f"Food event triggered: {self.food_event} for {self.food_event_duration} frames.")
+
+        # Decrement event timer and reset if event ends
+        if self.food_event_timer > 0:
+            self.food_event_timer -= 1
+            if self.food_event_timer == 0:
+                # Reset to normal
+                self.food_event = "normal"
+                self.food_respawn_delay = self.base_food_respawn_delay
+                self.num_food = self.base_num_food
+                print("Food event ended, returning to normal.")
+
     def update(self, frame, herbivore_scatter, carnivore_scatter, food_scatter):
+        self.trigger_food_event()
+
         new_organisms = []
         to_remove = []
 
@@ -68,9 +112,7 @@ class Grid:
                         to_remove.append(target)
                         fed = True
                         self.carnivore_last_meal_time[org] = frame
-                        #org.rest_timer = random.randint(5, 10)
                         org.rest_timer = 10
-                        # Add rest period here
                         if random.random() < self.carnivore_division_probab:
                             new_organisms.append(org.division())
                         break
@@ -88,7 +130,7 @@ class Grid:
         # Add new organisms
         self.organisms.extend(new_organisms)
         for new_org in new_organisms:
-            if new_org.cannibalism:
+            if hasattr(new_org, "cannibalism") and new_org.cannibalism:
                 self.carnivore_last_meal_time[new_org] = frame
 
         # Individual food respawn
@@ -98,6 +140,19 @@ class Grid:
             if pos not in self.food_positions:
                 self.food_positions.append(pos)
             del self.food_respawn_timer[pos]
+
+        # If food is too low, respawn at random positions to maintain event-driven num_food
+        while len(self.food_positions) < self.num_food:
+            # Random position, avoid overlap
+            tries = 0
+            while True:
+                new_pos = (random.randint(0, self.size-1), random.randint(0, self.size-1))
+                if new_pos not in self.food_positions:
+                    self.food_positions.append(new_pos)
+                    break
+                tries += 1
+                if tries > 10 * self.size:
+                    break  # Avoid infinite loop
 
         # Update plot positions
         herb_x, herb_y = zip(*[(o.x, o.y) for o in self.organisms if not o.cannibalism]) if any(
